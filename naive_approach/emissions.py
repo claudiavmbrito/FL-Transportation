@@ -11,8 +11,7 @@ class EmissionModels:
     self.distance=distance
 
   def get_standard(self, year, segment):
-      return EuroStandards(year, segment)
-
+      return EuroStandards.find_standard(year, segment)
 
   def emissions_calculation_fullinfo(self, vmean, pollutant, fuel=None, category=None, distance=None, year=None):
     URI_SQLITE_DB = "emissions.db"
@@ -46,7 +45,7 @@ class EmissionModels:
     vmax = 130
     vmin = 10
     euro = self.get_standard(year, category)
-    #this second segment represents the size of the vehicle
+    #the segment represents the size of the vehicle
     segment = 'Medium'
     tech = "GDI"
 
@@ -60,9 +59,19 @@ class EmissionModels:
     else: 
       vmean=vmean
 
+    alpha = 0
+    beta = 0
+    gamma = 0
+    delta = 0
+    epsilon = 0
+    zita = 0
+    hta = 0
+    redu_factor = 0
     #selecting the values from the table
     cur = conn.execute("SELECT DISTINCT alpha, beta, gamma, delta, epsilon, zita, hta, redu_factor from RoadEmission where Category ==? and Pollutant==? and Fuel==? and Euro_Standard==? and Segment==? and Technology=?", (category, pollutant, fuel, euro, segment, tech))
+
     for row in cur:
+      print(row)
       alpha = row[0]
       beta = row[1]
       gamma = row[2]
@@ -71,21 +80,22 @@ class EmissionModels:
       zita = row[5]
       hta = row [6]
       redu_factor = row[7]
+    
+    if (epsilon*vmean**2+zita*vmean+hta)==0:
+      emission = 0
 
-      if (epsilon*vmean**2+zita*vmean+hta)==0:
-        emission = 0
-      else:
-        emission = ((alpha*vmean**2+beta*vmean+gamma+(delta/vmean))/(epsilon*vmean**2+zita*vmean+hta)*(1-redu_factor))
-        emission = emission * distance
-      
-      # for the co2 emissions, other calculations are needed
-      if pollutant == "EC":
-        if fuel == 'Petrol':
-          emission = (emission/43.774)*3.169
-        elif fuel == 'Diesel':
-          emission = (emission/42.695)*3.169
-        elif fuel == 'LPG':
-          emission = (emission/46.564)*3.024
+    else:
+      emission = ((alpha*vmean**2+beta*vmean+gamma+(delta/vmean))/(epsilon*vmean**2+zita*vmean+hta)*(1-redu_factor))
+      emission = emission * distance
+
+    # for the co2 emissions, other calculations are needed
+    if pollutant == "EC":
+      if fuel == 'Petrol':
+        emission = (emission/43.774)*3.169
+      elif fuel == 'Diesel':
+        emission = (emission/42.695)*3.169
+      elif fuel == 'LPG':
+        emission = (emission/46.564)*3.024
 
     return emission
 
@@ -107,6 +117,7 @@ class EmissionModels:
         co2 = self.emissions_calculation_fullinfo(vmean, pol_ec, fuel, category, distance, year)
         ch4 = self.emissions_calculation_fullinfo(vmean, pol_ch, fuel, category, distance, year)
         voc = self.emissions_calculation_fullinfo(vmean, pol_voc, fuel, category, distance, year)
+        
         return co, nox, pm, co2, ch4, voc
 
     

@@ -10,7 +10,6 @@ from multiprocessing.pool import Pool
 def to_datetime(string):
     return dt.datetime.strptime(string, '%Y-%m-%d %H:%M:%S')
 
-
 def traject_calculator(long_a, lat_a, long_b, lat_b):
 #latitude cannot be <-90 or >90
 #longitude cannot be <-180 or >180
@@ -33,6 +32,7 @@ def velocity_calculator(distance, time_variation):
   else:
     speed = distance / time_variation.total_seconds()
     return speed
+
 #acceleration equals to the difference between the velocity of 2 consecutive points 
 #time variation is similar as above
 def acceleration_calculator(a_speed, b_speed, time_variation):
@@ -43,7 +43,6 @@ def acceleration_calculator(a_speed, b_speed, time_variation):
     acceleration = velocity_variation/time_variation.total_seconds()
     return acceleration
 
-
 def transform_labels(filepath):
   df_label = pd.read_csv(filepath, sep='\t')
   df_label['start_time'] = df_label['Start Time'].apply(lambda x: dt.datetime.strptime(x, '%Y/%m/%d %H:%M:%S'))
@@ -51,7 +50,6 @@ def transform_labels(filepath):
   df_label['labels'] = df_label['Transportation Mode']
   df_label = df_label.drop(['End Time', 'Start Time', 'Transportation Mode'], axis=1)
   return df_label
-
 
 #header for .plt file - new dataframe
 header_gps = ['lat','long','null','altitude','timestamp','date','time']
@@ -83,6 +81,7 @@ def load_trajectory_df(full_filename):
     df_traject['subfolder'] = subfolder
     df_traject['labels'] = ''
     calculate_agg_features(df_traject)
+    
     return df_traject
 
 #for more accurate results/enriching this data, the average as well as max and min of such values are calculated.
@@ -102,22 +101,10 @@ def calculate_agg_features(df):
     df.loc[:, 'a_med'] = a_med
     df.loc[:, 'a_max'] = a_max
 
-
-'''
-df = pd.read_csv('data_geolife/Data/000/Trajectory/20081023025304.plt', skiprows = 6, header = None, names = header_gps)
-df['datetime'] = df.apply(lambda z: to_datetime(z.date + ' ' + z.time), axis=1)
-df['datetime_next_position'] = df['datetime'].shift(-1)
-df['timedelta'] = df.apply(lambda z: z.datetime_next_position - z.datetime, axis=1)
-df = df.drop(['datetime_next_position'], axis=1)
-df = df.drop(['null', 'timestamp', 'date', 'time'], axis=1)
-df.head()
-'''
-
 LABELS_FILE = 'labels.txt'
 MAIN_FOLDER = 'data_geolife/Data/'
 TRAJ_FOLDER = 'Trajectory/'
 OUTPUT_FOLDER = 'data_geolife/processed_data/'
-POOLSIZE = 10
 
 if not os.path.exists(OUTPUT_FOLDER):
     os.makedirs(OUTPUT_FOLDER)
@@ -131,12 +118,6 @@ for subfolder in directories:
     
     traj_files_full_path = [traj_folder + traj_file for traj_file in traj_files]
     print(subfolder, len(traj_files_full_path))
-    
-    #multiprocessing does not work well in the jupyter notebook environment.
-    #outside of jupyter you can use multiprocessing to speed up the process
-    #pool = Pool(POOLSIZE)
-    #for df in pool.imap_unordered(load_trajectory_df, traj_files_full_path):
-    #    list_df_traj.append(df)
     
     for file in traj_files_full_path:
         list_df_traj.append(load_trajectory_df(file))

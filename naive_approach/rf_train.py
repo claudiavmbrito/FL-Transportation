@@ -26,25 +26,52 @@ def get_dataset():
         list_df_metadata.append(df_metadata)
     df_metadata = pd.concat(list_df_metadata)
 
-    #Get a new dataframe for calculating the vmean and the full distance of the trip
-    df_new_values = df_metadata.groupby('trajectory_id').agg({'distance':'sum', 'timedelta':'sum'})
-    print(df_new_values.head)
-    print(df_new_values.dtypes)
-
     del df_metadata['subfolder']
     del df_metadata['datetime']
-    del df_metadata['timedelta']
     del df_metadata['acceleration']
     del df_metadata['velocity']
     del df_metadata['lat']
     del df_metadata['long']
     del df_metadata['altitude']
 
+    #print(df_metadata.dtypes)
+    df_metadata['timedelta']=pd.to_timedelta(df_metadata.timedelta)
+
     df_labeled = df_metadata.dropna(subset=['v_ave','v_med','v_max', 'a_ave', 'a_med', 'a_max', 'labels'])
 
     df_labeled.loc[:,'labels'] = df_labeled['labels'].apply(lambda x: clean_label(x))
 
-    all_labels = df_labeled['labels'].unique()
+    #Get a new dataframe for calculating the vmean and the full distance of the trip
+    df_new_values = df_labeled.groupby('trajectory_id').agg({'distance':'sum', 'timedelta':'sum'})
+    df_new_values['timedelta']=pd.to_timedelta(df_new_values.timedelta)
+
+    df_new_values['vmean'] = df_new_values['distance'] / ( df_new_values['timedelta'].dt.total_seconds() / 3600.0 )
+
+    del df_metadata['timedelta']
+
+    df_new_values = df_new_values.merge(df_labeled, on='trajectory_id')
+    #df_new_values['labels'] = df_new_values['trajectory_id'].map(df_metadata['labels'])
+
+    del df_new_values['v_ave']
+    del df_new_values['v_med']
+    del df_new_values['v_max']
+    del df_new_values['a_ave']
+    del df_new_values['a_med']
+    del df_new_values['a_max']
+    del df_new_values['distance_y']
+    del df_new_values['timedelta_y']
+    del df_new_values['timedelta_x']
+    del df_new_values['trajectory_id']
+
+    df_new_values['distance_x'] = df_new_values['distance_x'].astype(np.float32)
+    df_new_values['vmean'] = df_new_values['vmean'].astype(np.float32)
+
+    df_new_values = df_new_values.dropna(subset=['distance_x','vmean', 'labels'])
+
+    print(df_new_values.head)
+    print(df_new_values.dtypes)
+
+    all_labels = df_new_values['labels'].unique()
 
     #We can filter out single modal trajectories by taking the labels which do not contain a comma:
     single_modality_labels = [elem for elem in all_labels if ',' not in elem]
@@ -54,18 +81,18 @@ def get_dataset():
     single_modality_labels.remove('subway')
     single_modality_labels.remove('train')
 
-    df_single_modality = df_labeled[df_labeled['labels'].isin(single_modality_labels)]
+    df_single_modality = df_new_values[df_new_values['labels'].isin(single_modality_labels)]
     
     to_general_label = {'bike': 'bike', 'run': 'foot', 'walk': 'foot', 'bus': 'passengerduty', 'car': 'vehicle', 'taxi': 'vehicle', 'motorcycle': 'motorcycle'}
 
-    df_single_modality['labels'] = df_single_modality['labels'].apply(lambda x: to_general_label[x])
+    df_single_modality.loc[:,'labels'] = df_single_modality['labels'].apply(lambda x: to_general_label[x])
 
     mask = np.random.rand(len(df_single_modality)) < 0.7
     df_train = df_single_modality[mask]
     df_test = df_single_modality[~mask]
 
     #The columns 
-    X_colnames = ['v_ave','v_med','v_max',  'a_ave', 'a_med', 'a_max']
+    X_colnames = ['distance_x','vmean']
     Y_colnames = ['labels']
 
     X_train = df_train[X_colnames].values
@@ -75,24 +102,29 @@ def get_dataset():
 
     return X_train, Y_train, X_test, Y_test, df_new_values
 
-#get dataset for training and testing the model
-X_train, Y_train, X_test, Y_test, df_new_values = get_dataset()
+def model_training():
 
+    X_train, Y_train, X_test, Y_test, df_new_values = get_dataset()
+    rf_classifier = RandomForestClassifier(n_estimators = 15)
 
-rf_classifier = RandomForestClassifier(n_estimators = 15)
+    t_start = time.time()
+    rf_classifier.fit(X_train, Y_train)
+    t_end = time.time()
+    t_diff = t_end - t_start
 
-t_start = time.time()
-rf_classifier.fit(X_train, Y_train)
-t_end = time.time()
-t_diff = t_end - t_start
+    dump(rf_classifier, 'rf_trained.joblib')
 
-dump(rf_classifier, 'rf_trained.joblib')
+    train_score = rf_classifier.score(X_train, Y_train)
+    test_score = rf_classifier.score(X_test, Y_test)
+    y_pred_rf= rf_classifier.predict(X_test)
+    #print(y_pred_rf)
+    print("trained Random Forest in {:.2f} s.\t Score on training / test set: {} / {}".format(t_diff, train_score, test_score))
 
-train_score = rf_classifier.score(X_train, Y_train)
-test_score = rf_classifier.score(X_test, Y_test)
-y_pred_rf= rf_classifier.predict(X_test)
-print(y_pred_rf)
-print("trained Random Forest in {:.2f} s.\t Score on training / test set: {} / {}".format(t_diff, train_score, test_score))
+    #acc_forest = accuracy_score(Y_test, y_pred_rf)
+    #print(" RF ," + str(acc_forest) + "\n")
 
-acc_forest = accuracy_score(Y_test, y_pred_rf)
-print(" RF ," + str(acc_forest) + "\n")
+    return train_score, test_score, y_pred_rf
+
+train_score, test_score, y_pred_rf = model_training()
+
+print("Score on training / test set: {} / {}".format( train_score, test_score))
