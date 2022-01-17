@@ -100,11 +100,11 @@ def get_dataset():
     X_test = df_test[X_colnames].values
     Y_test = np.ravel(df_test[Y_colnames].values)
 
-    return X_train, Y_train, X_test, Y_test, df_new_values
+    return X_train, Y_train, X_test, Y_test
 
 def model_training():
 
-    X_train, Y_train, X_test, Y_test, df_new_values = get_dataset()
+    X_train, Y_train, X_test, Y_test = get_dataset()
     rf_classifier = RandomForestClassifier(n_estimators = 15)
 
     t_start = time.time()

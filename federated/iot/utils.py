@@ -102,7 +102,7 @@ def get_dataset():
     X_test = df_test[X_colnames].values
     Y_test = np.ravel(df_test[Y_colnames].values)
 
-    return X_train, Y_train, X_test, Y_test, df_new_values
+    return X_train, Y_train, X_test, Y_test
 
 
 def get_model_parameters(model: RandomForestClassifier) -> RFParams:
