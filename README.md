@@ -24,5 +24,7 @@ In the `naive_approach`folder it is found four scripts. Such folder does not com
 
 ## Federated Learning Approach
 
-The `federated` folder comprises both `android` and `ios`versions. 
+The `federated` folder comprises both `android` and `ios`versions as well as a `iot` version that can be naively run within servers. 
+
+Go to `federated/iot` to know more.
 
