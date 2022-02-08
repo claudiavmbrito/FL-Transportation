@@ -16,7 +16,7 @@ if __name__ == "__main__":
 
     model = RandomForestClassifier(n_estimators = 15)
 
-    utils.set_initial_params(model)
+    #utils.set_initial_params(model)
 
     # Define Flower client
     class TMCClient(fl.client.NumPyClient):
