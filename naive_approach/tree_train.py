@@ -9,6 +9,8 @@ from joblib import dump, load
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import accuracy_score
 import matplotlib.pyplot as plt
+from sklearn import tree
+
 
 
 def clean_label(label):
@@ -105,31 +107,23 @@ def get_dataset():
 def model_training():
 
     X_train, Y_train, X_test, Y_test = get_dataset()
-    rf_classifier = RandomForestClassifier(n_estimators = 15)
+    tree_classifier = tree.DecisionTreeClassifier(min_samples_split=2)
 
     t_start = time.time()
-    rf_classifier.fit(X_train, Y_train)
+    tree_classifier.fit(X_train, Y_train)
     t_end = time.time()
     t_diff = t_end - t_start
 
-    dump(rf_classifier, 'rf_trained.joblib')
+    dump(tree_classifier, 'tree_trained.joblib')
 
-    train_score = rf_classifier.score(X_train, Y_train)
-    test_score = rf_classifier.score(X_test, Y_test)
-    y_pred_rf= rf_classifier.predict(X_test)
-    #print(y_pred_rf)
-    print("trained Random Forest in {:.2f} s.\t Score on training / test set: {} / {}".format(t_diff, train_score, test_score))
+    train_score = tree_classifier.score(X_train, Y_train)
+    test_score = tree_classifier.score(X_test, Y_test)
+    y_pred_tree= tree_classifier.predict(X_test)
+    print("trained Decision Tree in {:.2f} s.\t Score on training / test set: {} / {}".format(t_diff, train_score, test_score))
 
-    #acc_forest = accuracy_score(Y_test, y_pred_rf)
-    #print(" RF ," + str(acc_forest) + "\n")
-    acc_forest = accuracy_score(Y_test, y_pred_rf)
-    print(" RF ," + str(acc_forest) + "\n")
+    y_pred = pd.DataFrame(tree_classifier.predict(X_test),columns=['pred'])
 
-
-
-    y_pred = pd.DataFrame(rf_classifier.predict(X_test),columns=['pred'])
-
-    importances = rf_classifier.feature_importances_
+    importances = tree_classifier.feature_importances_
     indices = np.argsort(importances)
     features = X_train.columns
     plt.title('Feature Importances')
