@@ -102,11 +102,11 @@ def get_dataset():
     X_test = df_test[X_colnames].values
     Y_test = np.ravel(df_test[Y_colnames].values)
 
-    return X_train, Y_train, X_test, Y_test
+    return X_train, Y_train, X_test, Y_test, df_train
 
 def model_training():
 
-    X_train, Y_train, X_test, Y_test = get_dataset()
+    X_train, Y_train, X_test, Y_test, df_train = get_dataset()
     tree_classifier = tree.DecisionTreeClassifier(min_samples_split=2)
 
     t_start = time.time()
@@ -125,7 +125,7 @@ def model_training():
 
     importances = tree_classifier.feature_importances_
     indices = np.argsort(importances)
-    features = X_train.columns
+    features = df_train.columns
     plt.title('Feature Importances')
     plt.barh(range(len(indices)), importances[indices], color='g', align='center')
     plt.yticks(range(len(indices)), [features[i] for i in indices])
@@ -133,8 +133,8 @@ def model_training():
 
     plt.savefig("importance_features.png")
         
-    return train_score, test_score, y_pred_rf
+    return train_score, test_score, y_pred_tree
 
-train_score, test_score, y_pred_rf = model_training()
+train_score, test_score, y_pred_tree = model_training()
 
 print("Score on training / test set: {} / {}".format( train_score, test_score))

@@ -1,5 +1,7 @@
 import glob
 import time
+from itertools import cycle
+
 
 import pandas as pd
 import numpy as np
@@ -9,6 +11,12 @@ from joblib import dump, load
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import accuracy_score
 import matplotlib.pyplot as plt
+import shap
+import warnings
+from sklearn import tree
+from sklearn.metrics import classification_report
+from sklearn.metrics import roc_curve, auc
+from sklearn.preprocessing import LabelEncoder
 
 
 def clean_label(label):
@@ -100,15 +108,16 @@ def get_dataset():
     X_test = df_test[X_colnames].values
     Y_test = np.ravel(df_test[Y_colnames].values)
 
-    return X_train, Y_train, X_test, Y_test
+    return X_train, Y_train, X_test, Y_test, df_test
 
 def model_training():
 
-    X_train, Y_train, X_test, Y_test = get_dataset()
+    X_train, Y_train, X_test, Y_test, df_test = get_dataset()
     rf_classifier = RandomForestClassifier(n_estimators = 15)
 
     t_start = time.time()
     rf_classifier.fit(X_train, Y_train)
+    model = rf_classifier.fit(X_train, Y_train)
     t_end = time.time()
     t_diff = t_end - t_start
 
@@ -120,25 +129,25 @@ def model_training():
     #print(y_pred_rf)
     print("trained Random Forest in {:.2f} s.\t Score on training / test set: {} / {}".format(t_diff, train_score, test_score))
 
-    #acc_forest = accuracy_score(Y_test, y_pred_rf)
-    #print(" RF ," + str(acc_forest) + "\n")
-    acc_forest = accuracy_score(Y_test, y_pred_rf)
-    print(" RF ," + str(acc_forest) + "\n")
+    explainer = shap.TreeExplainer(model)
+    shap_values = explainer.shap_values(shap.sample(X_test, 1000))
 
+    print(f'Shape of test dataset: {X_test.shape}')
+    print(f'Type of shap_values: {type(shap_values)}. Lenght of the list: {len(shap_values)}')
+    print(f'Shape of shap_values: {np.array(shap_values).shape}')
+    
+    list_features = df_test.columns.tolist()
+    B = {'distance_x':"Distance",'vmean':"Velocity", 'labels': "Labels"}
+    C = (pd.Series(list_features)).map(B)
+    D = list(C)
+    print(C)
 
-
-    y_pred = pd.DataFrame(rf_classifier.predict(X_test),columns=['pred'])
-
-    importances = rf_classifier.feature_importances_
-    indices = np.argsort(importances)
-    features = X_train.columns
-    plt.title('Feature Importances')
-    plt.barh(range(len(indices)), importances[indices], color='g', align='center')
-    plt.yticks(range(len(indices)), [features[i] for i in indices])
-    plt.xlabel('Relative Importance')
-
-    plt.savefig("importance_features.png")
-        
+    #shap.dependence_plot(X_train.labels, shap_values[1], features=X_test)
+    I = shap.summary_plot(shap_values, X_test, feature_names=D, plot_type='bar', cmap='gray',show=False)
+    plt.legend(frameon=False, loc='lower center', ncol=6)
+    #plt.savefig("summary_plot_max.pdf")
+    plt.savefig("summary_plot_names.pdf") 
+ 
     return train_score, test_score, y_pred_rf
 
 train_score, test_score, y_pred_rf = model_training()
